@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShopVerse Test Runner</title>
+<style>
+/* ── Reset & base ─────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg:      #0f172a;
+  --bg2:     #1e293b;
+  --bg3:     #273549;
+  --border:  #334155;
+  --border2: #475569;
+  --text:    #e2e8f0;
+  --muted:   #94a3b8;
+  --teal:    #2dd4bf;
+  --teal2:   #0d9488;
+  --blue:    #60a5fa;
+  --blue2:   #1d4ed8;
+  --green:   #4ade80;
+  --green2:  #15803d;
+  --red:     #f87171;
+  --red2:    #b91c1c;
+  --yellow:  #fbbf24;
+  --purple:  #a78bfa;
+  --mono:    'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+       background: var(--bg); color: var(--text); height: 100vh;
+       display: flex; flex-direction: column; overflow: hidden; font-size: 13px; }
+
+/* ── Top bar ──────────────────────────────────────────────── */
+.topbar {
+  height: 48px; background: var(--bg2); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; padding: 0 16px; gap: 16px; flex-shrink: 0;
+}
+.logo { font-size: 15px; font-weight: 600; color: var(--teal); letter-spacing: -.3px; }
+.logo span { color: var(--text); font-weight: 400; }
+.divider { width: 1px; height: 20px; background: var(--border); }
+.status-chips { display: flex; gap: 8px; }
+.chip {
+  display: flex; align-items: center; gap: 5px; padding: 3px 10px;
+  border-radius: 99px; font-size: 11px; border: 1px solid var(--border);
+  background: var(--bg3); color: var(--muted);
+}
+.chip .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); }
+.chip.ok .dot  { background: var(--green); }
+.chip.err .dot { background: var(--red); }
+.chip.chk .dot { background: var(--yellow); animation: blink .8s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.chip.ok  { border-color: rgba(74,222,128,.3); color: var(--green); }
+.chip.err { border-color: rgba(248,113,113,.3); color: var(--red); }
+
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.global-badge {
+  padding: 3px 12px; border-radius: 99px; font-size: 11px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--bg3); color: var(--muted);
+}
+.global-badge.pass { border-color: rgba(74,222,128,.4); color: var(--green); background: rgba(74,222,128,.08); }
+.global-badge.fail { border-color: rgba(248,113,113,.4); color: var(--red);   background: rgba(248,113,113,.08); }
+.cancel-btn {
+  padding: 4px 14px; border-radius: 6px; font-size: 12px; font-weight: 500;
+  border: 1px solid var(--red2); color: var(--red); background: rgba(248,113,113,.08);
+  cursor: pointer; display: none;
+}
+.cancel-btn:hover { background: rgba(248,113,113,.18); }
+
+/* ── Main layout ──────────────────────────────────────────── */
+.main { display: grid; grid-template-columns: 300px 1fr; flex: 1; overflow: hidden; }
+
+/* ── Sidebar ──────────────────────────────────────────────── */
+.sidebar {
+  background: var(--bg2); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.sidebar-scroll { overflow-y: auto; flex: 1; }
+.sidebar-scroll::-webkit-scrollbar { width: 4px; }
+.sidebar-scroll::-webkit-scrollbar-track { background: transparent; }
+.sidebar-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+.section-label {
+  padding: 10px 14px 6px; font-size: 10px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .1em; background: var(--bg);
+  border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px;
+}
+.run-section-btn {
+  margin-left: auto; font-size: 10px; padding: 2px 9px; border-radius: 5px;
+  border: 1px solid var(--border2); background: transparent; color: var(--teal);
+  cursor: pointer; white-space: nowrap;
+}
+.run-section-btn:hover { background: rgba(45,212,191,.1); }
+.run-section-btn:disabled { opacity: .4; cursor: default; }
+
+.group { border-bottom: 1px solid var(--border); }
+.group-head {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  cursor: pointer; user-select: none;
+}
+.group-head:hover { background: var(--bg3); }
+.arrow { font-size: 10px; color: var(--muted); transition: transform .15s; flex-shrink:0; }
+.arrow.open { transform: rotate(90deg); }
+.group-name { flex: 1; font-size: 12px; font-weight: 500; color: var(--text); }
+.count-badge {
+  font-size: 10px; padding: 1px 7px; border-radius: 99px; font-weight: 600;
+  background: var(--bg3); color: var(--muted); border: 1px solid var(--border);
+}
+.count-badge.unit   { color: var(--blue);   border-color: rgba(96,165,250,.3);   background: rgba(96,165,250,.08); }
+.count-badge.api    { color: var(--green);  border-color: rgba(74,222,128,.3);   background: rgba(74,222,128,.08); }
+.count-badge.system { color: var(--yellow); border-color: rgba(251,191,36,.3);   background: rgba(251,191,36,.08); }
+.count-badge.e2e    { color: var(--purple); border-color: rgba(167,139,250,.3);  background: rgba(167,139,250,.08); }
+
+.run-grp-btn {
+  font-size: 10px; padding: 2px 9px; border-radius: 5px;
+  border: 1px solid var(--border2); background: transparent; color: var(--muted);
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+}
+.run-grp-btn:hover { color: var(--teal); border-color: rgba(45,212,191,.5); background: rgba(45,212,191,.08); }
+.run-grp-btn:disabled { opacity: .35; cursor: default; }
+.run-grp-btn.running { color: var(--blue); border-color: rgba(96,165,250,.5); animation: blink .8s infinite; }
+
+.test-list { display: none; }
+.test-list.open { display: block; }
+.test-item {
+  display: flex; align-items: center; gap: 7px; padding: 6px 12px 6px 28px;
+  border-bottom: 1px solid rgba(51,65,85,.5); cursor: pointer;
+}
+.test-item:last-child { border-bottom: none; }
+.test-item:hover { background: var(--bg3); }
+.test-item.active { background: rgba(45,212,191,.06); border-left: 2px solid var(--teal2); padding-left: 26px; }
+.ti-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+.ti-dot.pass    { background: var(--green); }
+.ti-dot.fail    { background: var(--red); }
+.ti-dot.running { background: var(--blue); animation: blink .6s infinite; }
+.ti-id   { font-family: var(--mono); font-size: 10.5px; color: var(--teal); flex-shrink:0; min-width:130px; }
+.ti-n    { font-size: 10px; color: var(--muted); margin-left: auto; flex-shrink:0; }
+.ti-run  {
+  font-size: 10px; padding: 1px 7px; border-radius: 4px;
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  cursor: pointer; flex-shrink: 0;
+}
+.ti-run:hover { color: var(--teal); border-color: rgba(45,212,191,.5); }
+.ti-run:disabled { opacity: .3; cursor: default; }
+
+/* ── Right panel ──────────────────────────────────────────── */
+.right { display: grid; grid-template-rows: 1fr 240px; overflow: hidden; }
+
+/* Detail pane */
+.detail { overflow-y: auto; padding: 16px 20px; }
+.detail::-webkit-scrollbar { width: 4px; }
+.detail::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.detail-empty {
+  height: 100%; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; color: var(--muted); gap: 8px;
+}
+.detail-empty svg { opacity: .3; }
+
+.detail-header { margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+.detail-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+.detail-cmd {
+  font-family: var(--mono); font-size: 11px; color: var(--teal2);
+  background: var(--bg3); padding: 6px 10px; border-radius: 6px;
+  border: 1px solid var(--border); margin-bottom: 8px; word-break: break-all;
+}
+.detail-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.pill {
+  font-size: 10px; padding: 2px 9px; border-radius: 99px;
+  border: 1px solid var(--border); background: var(--bg3); color: var(--muted);
+}
+
+.stat-row { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.stat-card {
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 16px; min-width: 80px; text-align: center;
+}
+.stat-num { font-size: 24px; font-weight: 600; color: var(--text); line-height: 1; }
+.stat-lbl { font-size: 10px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .06em; }
+.stat-num.pass { color: var(--green); }
+.stat-num.fail { color: var(--red); }
+.stat-num.skip { color: var(--yellow); }
+.stat-num.live { color: var(--blue); animation: blink .8s infinite; }
+
+.progress-wrap { margin-bottom: 14px; }
+.progress-bar  { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; border: 1px solid var(--border); }
+.progress-fill { height: 100%; background: var(--teal2); border-radius: 3px; transition: width .3s; }
+.progress-fill.has-fail { background: linear-gradient(90deg, var(--teal2) var(--pass-pct), var(--red2) var(--pass-pct)); }
+.progress-label { font-size: 10px; color: var(--muted); margin-top: 4px; }
+
+/* Results table */
+.res-table { width: 100%; border-collapse: collapse; }
+.res-table th {
+  text-align: left; font-size: 10px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .07em; padding: 6px 8px;
+  border-bottom: 1px solid var(--border); background: var(--bg2);
+  position: sticky; top: -16px; z-index: 1;
+}
+.res-table td { padding: 5px 8px; border-bottom: 1px solid rgba(51,65,85,.5); font-size: 11.5px; vertical-align: middle; }
+.res-table tr:last-child td { border-bottom: none; }
+.res-table tr:hover td { background: rgba(255,255,255,.02); }
+.res-table tr.pass-row td:first-child { border-left: 2px solid var(--green); }
+.res-table tr.fail-row td:first-child { border-left: 2px solid var(--red); }
+.res-table tr.run-row  td:first-child { border-left: 2px solid var(--blue); }
+.res-table .cell-id  { font-family: var(--mono); font-size: 10.5px; color: var(--teal); white-space: nowrap; }
+.res-table .cell-fn  { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+.res-table .cell-dur { font-family: var(--mono); font-size: 10.5px; color: var(--muted); text-align: right; white-space: nowrap; }
+.pass-badge { color: var(--green); font-weight: 600; font-size: 11px; }
+.fail-badge { color: var(--red);   font-weight: 600; font-size: 11px; }
+.run-badge  { color: var(--blue);  font-weight: 600; font-size: 11px; animation: blink .6s infinite; }
+.skip-badge { color: var(--yellow);font-weight: 600; font-size: 11px; }
+
+/* ── Log pane ─────────────────────────────────────────────── */
+.log-pane {
+  border-top: 1px solid var(--border); background: var(--bg);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.log-header {
+  height: 34px; border-bottom: 1px solid var(--border); display: flex; align-items: center;
+  padding: 0 14px; gap: 10px; flex-shrink: 0; background: var(--bg2);
+}
+.log-live { width: 7px; height: 7px; border-radius: 50%; background: var(--border2); flex-shrink: 0; }
+.log-live.active { background: var(--green); animation: blink .8s infinite; }
+.log-title { font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; flex: 1; }
+.log-linect { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.log-btns { display: flex; gap: 6px; }
+.log-btn {
+  font-size: 10px; padding: 2px 9px; border-radius: 5px;
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  cursor: pointer;
+}
+.log-btn:hover { background: var(--bg3); color: var(--text); }
+.log-body {
+  flex: 1; overflow-y: auto; padding: 8px 14px;
+  font-family: var(--mono); font-size: 11.5px; line-height: 1.65;
+}
+.log-body::-webkit-scrollbar { width: 4px; }
+.log-body::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.ll { white-space: pre-wrap; word-break: break-all; padding: 0; }
+.ll.dim  { color: var(--muted); }
+.ll.info { color: var(--blue); }
+.ll.pass { color: var(--green); }
+.ll.fail { color: var(--red); }
+.ll.warn { color: var(--yellow); }
+.ll.sep  { color: var(--border2); }
+.ll.cmd  { color: var(--teal); font-weight: 600; }
+
+/* ── Server offline overlay ───────────────────────────────── */
+.offline-overlay {
+  position: fixed; inset: 0; background: rgba(15,23,42,.92);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 100; backdrop-filter: blur(2px);
+}
+.offline-box {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 12px;
+  padding: 32px 36px; max-width: 420px; text-align: center;
+}
+.offline-box h2 { font-size: 17px; color: var(--text); margin-bottom: 10px; }
+.offline-box p  { font-size: 12px; color: var(--muted); line-height: 1.7; margin-bottom: 16px; }
+.offline-box code {
+  display: block; background: var(--bg3); border: 1px solid var(--border);
+  border-radius: 6px; padding: 10px 14px; font-family: var(--mono); font-size: 12px;
+  color: var(--teal); margin-bottom: 16px; text-align: left;
+}
+.retry-btn {
+  padding: 8px 24px; border-radius: 7px; font-size: 13px; font-weight: 500;
+  border: 1px solid var(--teal2); color: var(--teal); background: rgba(45,212,191,.1);
+  cursor: pointer;
+}
+.retry-btn:hover { background: rgba(45,212,191,.2); }
+</style>
+</head>
+<body>
+
+<!-- Server offline overlay -->
+<div class="offline-overlay" id="offline-overlay">
+  <div class="offline-box">
+    <h2>Runner server not found</h2>
+    <p>Start the server from your ShopVerse test project root:</p>
+    <code>python runner_server.py</code>
+    <p style="margin-bottom:16px">Then open <strong>http://localhost:9000</strong> in your browser.</p>
+    <button class="retry-btn" onclick="checkServer()">Retry connection</button>
+  </div>
+</div>
+
+<!-- Top bar -->
+<div class="topbar">
+  <div class="logo">ShopVerse <span>Test Runner</span></div>
+  <div class="divider"></div>
+  <div class="status-chips">
+    <div class="chip chk" id="chip-server"> <div class="dot"></div> Server </div>
+    <div class="chip chk" id="chip-backend"><div class="dot"></div> .NET API :5000 </div>
+    <div class="chip chk" id="chip-frontend"><div class="dot"></div> Angular :4200 </div>
+  </div>
+  <div class="topbar-right">
+    <span class="global-badge" id="gb-total" style="display:none"></span>
+    <span class="global-badge pass" id="gb-pass" style="display:none"></span>
+    <span class="global-badge fail" id="gb-fail" style="display:none"></span>
+    <button class="cancel-btn" id="cancel-btn" onclick="cancelRun()">&#9632; Stop</button>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-scroll" id="sidebar-scroll">
+
+      <!-- Backend section -->
+      <div class="section-label">
+        Backend tests
+        <button class="run-section-btn" id="btn-sec-backend" onclick="runSection('backend')">Run all</button>
+      </div>
+
+      <div class="group" id="grp-unit">
+        <div class="group-head" onclick="toggleGroup('unit')">
+          <span class="arrow" id="arr-unit">&#9654;</span>
+          <span class="group-name">Unit tests</span>
+          <span class="count-badge unit">60</span>
+          <button class="run-grp-btn" id="btn-grp-unit" onclick="event.stopPropagation();runGroup('unit')">Run</button>
+        </div>
+        <div class="test-list" id="list-unit"></div>
+      </div>
+
+      <div class="group" id="grp-api">
+        <div class="group-head" onclick="toggleGroup('api')">
+          <span class="arrow" id="arr-api">&#9654;</span>
+          <span class="group-name">Integration API</span>
+          <span class="count-badge api">67</span>
+          <button class="run-grp-btn" id="btn-grp-api" onclick="event.stopPropagation();runGroup('api')">Run</button>
+        </div>
+        <div class="test-list" id="list-api"></div>
+      </div>
+
+      <div class="group" id="grp-system">
+        <div class="group-head" onclick="toggleGroup('system')">
+          <span class="arrow" id="arr-system">&#9654;</span>
+          <span class="group-name">System flows</span>
+          <span class="count-badge system">11</span>
+          <button class="run-grp-btn" id="btn-grp-system" onclick="event.stopPropagation();runGroup('system')">Run</button>
+        </div>
+        <div class="test-list" id="list-system"></div>
+      </div>
+
+      <!-- E2E section -->
+      <div class="section-label" style="margin-top:1px">
+        Frontend E2E tests
+        <button class="run-section-btn" id="btn-sec-e2e" onclick="runSection('e2e')">Run all</button>
+      </div>
+
+      <div class="group" id="grp-login">
+        <div class="group-head" onclick="toggleGroup('login')">
+          <span class="arrow" id="arr-login">&#9654;</span>
+          <span class="group-name">Login</span>
+          <span class="count-badge e2e">8</span>
+          <button class="run-grp-btn" id="btn-grp-login" onclick="event.stopPropagation();runGroup('login')">Run</button>
+        </div>
+        <div class="test-list" id="list-login"></div>
+      </div>
+
+      <div class="group" id="grp-register">
+        <div class="group-head" onclick="toggleGroup('register')">
+          <span class="arrow" id="arr-register">&#9654;</span>
+          <span class="group-name">Register</span>
+          <span class="count-badge e2e">6</span>
+          <button class="run-grp-btn" id="btn-grp-register" onclick="event.stopPropagation();runGroup('register')">Run</button>
+        </div>
+        <div class="test-list" id="list-register"></div>
+      </div>
+
+      <div class="group" id="grp-home">
+        <div class="group-head" onclick="toggleGroup('home')">
+          <span class="arrow" id="arr-home">&#9654;</span>
+          <span class="group-name">Home page</span>
+          <span class="count-badge e2e">11</span>
+          <button class="run-grp-btn" id="btn-grp-home" onclick="event.stopPropagation();runGroup('home')">Run</button>
+        </div>
+        <div class="test-list" id="list-home"></div>
+      </div>
+
+      <div class="group" id="grp-nav">
+        <div class="group-head" onclick="toggleGroup('nav')">
+          <span class="arrow" id="arr-nav">&#9654;</span>
+          <span class="group-name">Navigation &amp; guards</span>
+          <span class="count-badge e2e">9</span>
+          <button class="run-grp-btn" id="btn-grp-nav" onclick="event.stopPropagation();runGroup('nav')">Run</button>
+        </div>
+        <div class="test-list" id="list-nav"></div>
+      </div>
+
+      <div class="group" id="grp-cart">
+        <div class="group-head" onclick="toggleGroup('cart')">
+          <span class="arrow" id="arr-cart">&#9654;</span>
+          <span class="group-name">Cart</span>
+          <span class="count-badge e2e">7</span>
+          <button class="run-grp-btn" id="btn-grp-cart" onclick="event.stopPropagation();runGroup('cart')">Run</button>
+        </div>
+        <div class="test-list" id="list-cart"></div>
+      </div>
+
+      <div class="group" id="grp-compat">
+        <div class="group-head" onclick="toggleGroup('compat')">
+          <span class="arrow" id="arr-compat">&#9654;</span>
+          <span class="group-name">Compatibility</span>
+          <span class="count-badge e2e">5</span>
+          <button class="run-grp-btn" id="btn-grp-compat" onclick="event.stopPropagation();runGroup('compat')">Run</button>
+        </div>
+        <div class="test-list" id="list-compat"></div>
+      </div>
+
+      <div class="group" id="grp-a11y">
+        <div class="group-head" onclick="toggleGroup('a11y')">
+          <span class="arrow" id="arr-a11y">&#9654;</span>
+          <span class="group-name">Accessibility</span>
+          <span class="count-badge e2e">7</span>
+          <button class="run-grp-btn" id="btn-grp-a11y" onclick="event.stopPropagation();runGroup('a11y')">Run</button>
+        </div>
+        <div class="test-list" id="list-a11y"></div>
+      </div>
+
+    </div><!-- /sidebar-scroll -->
+  </div><!-- /sidebar -->
+
+  <!-- Right panel -->
+  <div class="right">
+
+    <!-- Detail pane -->
+    <div class="detail" id="detail-pane">
+      <div class="detail-empty" id="detail-empty">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18m0 0h10a2 2 0 0 0 2-2v-4M9 21H5a2 2 0 0 1-2-2v-4m0 0h18"/>
+        </svg>
+        <span>Select a group or run tests to see results</span>
+      </div>
+      <div id="detail-content" style="display:none">
+        <div class="detail-header">
+          <div class="detail-title" id="det-title"></div>
+          <div class="detail-cmd"   id="det-cmd"></div>
+          <div class="detail-pills" id="det-pills"></div>
+        </div>
+        <div class="stat-row" id="det-stats"></div>
+        <div class="progress-wrap" id="det-progress" style="display:none">
+          <div class="progress-bar"><div class="progress-fill" id="det-bar" style="width:0%"></div></div>
+          <div class="progress-label" id="det-bar-label"></div>
+        </div>
+        <table class="res-table" id="det-table">
+          <thead><tr>
+            <th style="width:220px">Test function</th>
+            <th>File</th>
+            <th style="width:70px">Status</th>
+            <th style="width:70px">Duration</th>
+          </tr></thead>
+          <tbody id="det-tbody"></tbody>
+        </table>
+        <div id="det-placeholder" style="padding:20px 0;color:var(--muted);font-size:12px">
+          Hit Run to stream real test results here.
+        </div>
+      </div>
+    </div>
+
+    <!-- Log pane -->
+    <div class="log-pane">
+      <div class="log-header">
+        <div class="log-live" id="log-live"></div>
+        <div class="log-title">Traffic log</div>
+        <div class="log-linect" id="log-linect">0 lines</div>
+        <div class="log-btns">
+          <button class="log-btn" onclick="toggleAutoScroll()">Auto-scroll: <span id="as-label">ON</span></button>
+          <button class="log-btn" onclick="clearLog()">Clear</button>
+        </div>
+      </div>
+      <div class="log-body" id="log-body"></div>
+    </div>
+
+  </div><!-- /right -->
+</div><!-- /main -->
+
+<script>
+const SERVER = 'http://localhost:9000';
+
+/* ── State ──────────────────────────────────────────────────── */
+const S = {
+  running   : false,
+  autoScroll: true,
+  logLines  : 0,
+  globalPass: 0,
+  globalFail: 0,
+  currentGroup: null,
+  /*
+   * groupResults[gid]  = array of individual test result objects
+   *   { fn, cls, path, status, duration }
+   * groupSummary[gid]  = final summary from `done` event
+   *   { passed, failed, errors, skipped, duration }
+   * groupRunning[gid]  = true while a run is in progress
+   */
+  groupResults: {},
+  groupSummary: {},
+  groupRunning: {},
+  activeEs    : null,
+};
+
+/* ── Test metadata (sidebar items) ─────────────────────────── */
+const GROUPS = {
+  unit:     { label:'Unit tests',          file:'tests_unit/',                     tech:'EC, BVA, State Transition, White-box', section:'backend', badgeClass:'unit',
+    items:[
+      {id:'TC-UNIT-AU-01..18', fn:'TestLoginInputValidation + TestAccountStatus + TestJwtClaims + TestRoleCheck', n:18},
+      {id:'TC-UNIT-OS-01..08', fn:'TestOrderStatusValidation',   n:8},
+      {id:'TC-UNIT-OP-01..07', fn:'TestOrderPermissions',        n:7},
+      {id:'TC-UNIT-OT-01..06', fn:'TestOrderTotalCalculation',   n:6},
+      {id:'TC-UNIT-PL-01..21', fn:'TestSoftDelete + TestSearch + TestCategory + TestPrice + TestSort + TestPagination', n:21},
+    ]},
+  api:      { label:'Integration API',     file:'tests_api/ (5 files)',            tech:'EC, BVA, Security, State Transition', section:'backend', badgeClass:'api',
+    items:[
+      {id:'TC-API-L01..08',  fn:'TestLogin (8)',      n:8},
+      {id:'TC-API-R01..05',  fn:'TestRegister (5)',   n:5},
+      {id:'TC-API-C01..09',  fn:'TestCategories (9)', n:9},
+      {id:'TC-API-O01..17',  fn:'TestOrders (17)',    n:17},
+      {id:'TC-API-P01..16',  fn:'TestProducts (16)',  n:16},
+      {id:'TC-API-U01..12',  fn:'TestUsers (12)',     n:12},
+    ]},
+  system:   { label:'System flows',        file:'tests_api/test_system_flows.py',  tech:'Scenario-based, Regression, Security', section:'backend', badgeClass:'system',
+    items:[
+      {id:'TC-SYS-01',        fn:'test_full_user_flow',     n:1},
+      {id:'TC-SYS-02',        fn:'test_admin_product_flow', n:1},
+      {id:'TC-SYS-03',        fn:'test_order_lifecycle',    n:1},
+      {id:'TC-SYS-04',        fn:'test_user_cancels_order', n:1},
+      {id:'TC-SYS-REG-01..03',fn:'TestRegression (3)',      n:3},
+      {id:'TC-SYS-SEC-01..04',fn:'TestSecurity (4)',        n:4},
+    ]},
+  login:    { label:'Login (E2E)',          file:'tests_e2e/test_login.py',         tech:'Requirements-based, BVA, State Transition', section:'e2e', badgeClass:'e2e',
+    items:[
+      {id:'TC-E2E-L01',fn:'test_login_page_loads',         n:1},
+      {id:'TC-E2E-L02',fn:'test_form_fields_present',      n:1},
+      {id:'TC-E2E-L03',fn:'test_empty_fields_validation',  n:1},
+      {id:'TC-E2E-L04',fn:'test_invalid_credentials_error',n:1},
+      {id:'TC-E2E-L05',fn:'test_demo_user_button',         n:1},
+      {id:'TC-E2E-L06',fn:'test_demo_admin_button',        n:1},
+      {id:'TC-E2E-L07',fn:'test_login_redirects',          n:1},
+      {id:'TC-E2E-L08',fn:'test_password_toggle',          n:1},
+    ]},
+  register: { label:'Register (E2E)',       file:'tests_e2e/test_register.py',      tech:'Requirements-based, BVA, EC', section:'e2e', badgeClass:'e2e',
+    items:[
+      {id:'TC-E2E-R01',fn:'test_register_page_loads',   n:1},
+      {id:'TC-E2E-R02',fn:'test_form_fields_present',   n:1},
+      {id:'TC-E2E-R03',fn:'test_empty_form_validation', n:1},
+      {id:'TC-E2E-R04',fn:'test_password_mismatch',     n:1},
+      {id:'TC-E2E-R05',fn:'test_valid_registration',    n:1},
+      {id:'TC-E2E-R06',fn:'test_duplicate_email_error', n:1},
+    ]},
+  home:     { label:'Home page (E2E)',      file:'tests_e2e/test_home.py',          tech:'Requirements-based, EC, State Transition', section:'e2e', badgeClass:'e2e',
+    items:[
+      {id:'TC-E2E-H01',fn:'test_home_page_loads',        n:1},
+      {id:'TC-E2E-H02',fn:'test_navbar_visible',         n:1},
+      {id:'TC-E2E-H03',fn:'test_product_cards',          n:1},
+      {id:'TC-E2E-H04',fn:'test_product_images',         n:1},
+      {id:'TC-E2E-H05',fn:'test_search_filter',          n:1},
+      {id:'TC-E2E-H06',fn:'test_category_sidebar',       n:1},
+      {id:'TC-E2E-H07',fn:'test_add_to_cart_button',     n:1},
+      {id:'TC-E2E-H08',fn:'test_cart_count_increments',  n:1},
+      {id:'TC-E2E-H09',fn:'test_cart_icon_navigation',   n:1},
+      {id:'TC-E2E-H10',fn:'test_cart_badge_increments',  n:1},
+      {id:'TC-E2E-H12',fn:'test_anonymous_redirect',     n:1},
+    ]},
+  nav:      { label:'Navigation & guards',  file:'tests_e2e/test_navigation.py',    tech:'Requirements-based, Security, State Transition', section:'e2e', badgeClass:'e2e',
+    items:[
+      {id:'TC-E2E-N01',fn:'test_home_route_loads',       n:1},
+      {id:'TC-E2E-N02',fn:'test_cart_route_loads',       n:1},
+      {id:'TC-E2E-N03',fn:'test_favorites_route_loads',  n:1},
+      {id:'TC-E2E-N04',fn:'test_profile_route_loads',    n:1},
+      {id:'TC-E2E-N05',fn:'test_auth_guard_home',        n:1},
+      {id:'TC-E2E-N06',fn:'test_auth_guard_cart',        n:1},
+      {id:'TC-E2E-N07',fn:'test_guest_guard',            n:1},
+      {id:'TC-E2E-N08',fn:'test_admin_guard',            n:1},
+      {id:'TC-E2E-N09',fn:'test_logout_then_redirect',   n:1},
+    ]},
+  cart:     { label:'Cart (E2E)',           file:'tests_e2e/test_cart.py',          tech:'Requirements-based, BVA', section:'e2e', badgeClass:'e2e',
+    items:[
+      {id:'TC-E2E-C01',fn:'test_empty_cart_message',   n:1},
+      {id:'TC-E2E-C02',fn:'test_cart_page_loads',      n:1},
+      {id:'TC-E2E-C03',fn:'test_product_in_cart',      n:1},
+      {id:'TC-E2E-C04',fn:'test_cart_total_updates',   n:1},
+      {id:'TC-E2E-C05',fn:'test_remove_from_cart',     n:1},
+      {id:'TC-E2E-C06',fn:'test_checkout_button',      n:1},
+      {id:'TC-E2E-C07',fn:'test_two_item_cart_count',  n:1},
+    ]},
+  compat:   { label:'Compatibility (E2E)',  file:'tests_e2e/test_compatibility.py', tech:'Compatibility', section:'e2e', badgeClass:'e2e',
+    items:[
+      {id:'TC-E2E-COMPAT-01',fn:'test_mobile_375',      n:1},
+      {id:'TC-E2E-COMPAT-02',fn:'test_tablet_768',      n:1},
+      {id:'TC-E2E-COMPAT-03',fn:'test_desktop_1440',    n:1},
+      {id:'TC-E2E-COMPAT-04',fn:'test_no_horiz_overflow',n:1},
+      {id:'TC-E2E-COMPAT-05',fn:'test_mobile_navbar',   n:1},
+    ]},
+  a11y:     { label:'Accessibility (E2E)', file:'tests_e2e/test_accessibility.py', tech:'Accessibility WCAG 2.1', section:'e2e', badgeClass:'e2e',
+    items:[
+      {id:'TC-E2E-A01',fn:'test_home_page_has_title',      n:1},
+      {id:'TC-E2E-A02',fn:'test_login_page_has_title',     n:1},
+      {id:'TC-E2E-A03',fn:'test_login_form_labels',        n:1},
+      {id:'TC-E2E-A04',fn:'test_register_form_labels',     n:1},
+      {id:'TC-E2E-A05',fn:'test_image_alt_attributes',     n:1},
+      {id:'TC-E2E-A06',fn:'test_keyboard_accessible',      n:1},
+      {id:'TC-E2E-A08',fn:'test_heading_structure',        n:1},
+    ]},
+};
+
+/* ── Build sidebar ──────────────────────────────────────────── */
+function buildSidebar() {
+  Object.keys(GROUPS).forEach(gid => {
+    const g  = GROUPS[gid];
+    const el = document.getElementById('list-' + gid);
+    el.innerHTML = g.items.map((item, i) => `
+      <div class="test-item" id="ti-${gid}-${i}" onclick="selectGroup('${gid}')">
+        <div class="ti-dot" id="dot-${gid}-${i}"></div>
+        <div class="ti-id">${item.id}</div>
+        <div class="ti-n">${item.n}</div>
+        <button class="ti-run" id="trun-${gid}-${i}"
+          onclick="event.stopPropagation();runGroup('${gid}')">Run</button>
+      </div>
+    `).join('');
+  });
+}
+
+/* ── Sidebar accordion ──────────────────────────────────────── */
+function toggleGroup(gid) {
+  const list = document.getElementById('list-' + gid);
+  const arr  = document.getElementById('arr-'  + gid);
+  list.classList.toggle('open');
+  arr.classList.toggle('open');
+}
+
+function selectGroup(gid) {
+  S.currentGroup = gid;
+  document.querySelectorAll('.test-item').forEach(el => el.classList.remove('active'));
+  renderDetail(gid);
+}
+
+/* ── Detail pane ────────────────────────────────────────────── */
+function renderDetail(gid) {
+  const g    = GROUPS[gid];
+  const res  = S.groupResults[gid] || [];
+  const summ = S.groupSummary[gid] || null;
+  const isRunning = !!S.groupRunning[gid];
+
+  document.getElementById('detail-empty').style.display   = 'none';
+  document.getElementById('detail-content').style.display = '';
+
+  document.getElementById('det-title').textContent = g.label;
+  document.getElementById('det-cmd').textContent   = 'pytest ' + (
+    gid === 'api'
+      ? 'tests_api/test_api_auth.py tests_api/test_api_categories.py ' +
+        'tests_api/test_api_orders.py tests_api/test_api_products.py ' +
+        'tests_api/test_api_users.py -v'
+      : g.file + ' -v'
+  );
+
+  const pills = [g.tech, g.section === 'e2e' ? 'Selenium Chrome' : 'pytest requests'];
+  document.getElementById('det-pills').innerHTML =
+    pills.map(p => `<span class="pill">${p}</span>`).join('');
+
+  // ── Stats ──────────────────────────────────────────────────────────────────
+  // Total: use expected static count from GROUPS definition
+  const expectedTotal = g.items.reduce((a, it) => a + it.n, 0);
+
+  // Passed / Failed: prefer authoritative summary from `done` event.
+  // While still running, count from the streamed result events.
+  let passed, failed, skipped;
+  if (summ) {
+    // Run completed — use exact counts from pytest summary line
+    passed  = summ.passed;
+    failed  = summ.failed + (summ.errors || 0);
+    skipped = summ.skipped || 0;
+  } else if (res.length > 0) {
+    // Run in progress — count from received events so far
+    passed  = res.filter(r => r.status === 'PASSED').length;
+    failed  = res.filter(r => r.status === 'FAILED' || r.status === 'ERROR').length;
+    skipped = res.filter(r => r.status === 'SKIPPED').length;
+  } else {
+    passed = failed = skipped = null;  // not yet run
+  }
+
+  const dur = summ ? summ.duration.toFixed(2) + 's' : (isRunning ? '…' : '—');
+
+  const passHtml  = passed  === null ? '—' : passed;
+  const failHtml  = failed  === null ? '—' : failed;
+  const passClass = passed  === null ? ''  : 'pass';
+  const failClass = failed === null || failed === 0 ? '' : 'fail';
+  const durClass  = isRunning ? 'live' : '';
+
+  document.getElementById('det-stats').innerHTML = `
+    <div class="stat-card">
+      <div class="stat-num">${expectedTotal}</div>
+      <div class="stat-lbl">total</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num ${passClass}">${passHtml}</div>
+      <div class="stat-lbl">passed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num ${failClass}">${failHtml}</div>
+      <div class="stat-lbl">failed</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num ${durClass}">${dur}</div>
+      <div class="stat-lbl">duration</div>
+    </div>
+  `;
+
+  // ── Progress bar ───────────────────────────────────────────────────────────
+  const progWrap = document.getElementById('det-progress');
+  if (passed !== null || isRunning) {
+    progWrap.style.display = '';
+    const pPassed = passed || 0;
+    const pFailed = failed || 0;
+    const pct     = Math.round((pPassed / expectedTotal) * 100);
+    const bar     = document.getElementById('det-bar');
+    bar.style.width = pct + '%';
+    if (pFailed > 0) {
+      bar.style.setProperty('--pass-pct', pct + '%');
+      bar.classList.add('has-fail');
+    } else {
+      bar.classList.remove('has-fail');
+    }
+    document.getElementById('det-bar-label').textContent =
+      isRunning && !summ
+        ? `${pPassed} / ${expectedTotal} received so far…`
+        : `${pPassed} / ${expectedTotal} tests passed (${pct}%)`;
+  } else {
+    progWrap.style.display = 'none';
+  }
+
+  // ── Results table ──────────────────────────────────────────────────────────
+  const placeholder = document.getElementById('det-placeholder');
+  const tbody       = document.getElementById('det-tbody');
+
+  if (res.length === 0) {
+    tbody.innerHTML       = '';
+    placeholder.style.display = '';
+  } else {
+    placeholder.style.display = 'none';
+
+    // Per-test average duration (only when summary available)
+    const perTestDur = (summ && summ.duration && res.length > 0)
+      ? (summ.duration / res.length).toFixed(3) + 's'
+      : '—';
+
+    tbody.innerHTML = res.map(r => {
+      // Determine row style
+      const isPassed  = r.status === 'PASSED';
+      const isRunning = r.status === 'running';
+      const rowCls    = isPassed ? 'pass-row' : isRunning ? 'run-row' : 'fail-row';
+
+      // Badge
+      let badge, badgeCls;
+      if (isPassed)         { badge = '✓ PASS'; badgeCls = 'pass-badge'; }
+      else if (isRunning)   { badge = '⟳ …';   badgeCls = 'run-badge';  }
+      else if (r.status === 'SKIPPED') { badge = '⊘ SKIP'; badgeCls = 'skip-badge'; }
+      else                  { badge = '✗ FAIL'; badgeCls = 'fail-badge'; }
+
+      // Display function name: strip "test_" prefix, replace _ with spaces
+      const displayFn = r.fn.replace(/^test_/, '').replace(/_/g, ' ');
+
+      // File column: show only the filename, not full path
+      const fileShort = r.path ? r.path.replace(/.*[/\\]/, '') : '';
+
+      // Duration: use summary-derived average when run is complete
+      const dur = r.duration && r.duration !== '—' ? r.duration : perTestDur;
+
+      return `<tr class="${rowCls}">
+        <td class="cell-id">${displayFn}</td>
+        <td class="cell-fn">${fileShort}</td>
+        <td><span class="${badgeCls}">${badge}</span></td>
+        <td class="cell-dur">${dur}</td>
+      </tr>`;
+    }).join('');
+  }
+}
+
+/* ── Log helpers ────────────────────────────────────────────── */
+let logLiveTimer = null;
+function log(text, cls) {
+  const body = document.getElementById('log-body');
+  const line = document.createElement('div');
+  line.className  = 'll ' + (cls || 'dim');
+  line.textContent = text;
+  body.appendChild(line);
+  S.logLines++;
+  document.getElementById('log-linect').textContent = S.logLines + ' lines';
+  if (S.autoScroll) body.scrollTop = body.scrollHeight;
+  document.getElementById('log-live').className = 'log-live active';
+  clearTimeout(logLiveTimer);
+  logLiveTimer = setTimeout(() => {
+    document.getElementById('log-live').className = 'log-live';
+  }, 1200);
+}
+function clearLog() {
+  document.getElementById('log-body').innerHTML = '';
+  S.logLines = 0;
+  document.getElementById('log-linect').textContent = '0 lines';
+}
+function toggleAutoScroll() {
+  S.autoScroll = !S.autoScroll;
+  document.getElementById('as-label').textContent = S.autoScroll ? 'ON' : 'OFF';
+}
+
+/* ── Global stats bar ───────────────────────────────────────── */
+function refreshGlobalStats() {
+  let pass = 0, fail = 0, total = 0;
+
+  Object.keys(S.groupSummary).forEach(gid => {
+    const s = S.groupSummary[gid];
+    if (!s) return;
+    // Use authoritative summary counts
+    pass  += (s.passed  || 0);
+    fail  += (s.failed  || 0) + (s.errors || 0);
+    total += (s.passed  || 0) + (s.failed || 0) + (s.errors || 0) + (s.skipped || 0);
+  });
+
+  // Also count results for groups still running (no summary yet)
+  Object.keys(S.groupResults).forEach(gid => {
+    if (S.groupSummary[gid]) return;  // already counted above
+    const arr = S.groupResults[gid] || [];
+    arr.forEach(r => {
+      total++;
+      if (r.status === 'PASSED') pass++;
+      else if (r.status !== 'running' && r.status !== 'SKIPPED') fail++;
+    });
+  });
+
+  S.globalPass = pass; S.globalFail = fail;
+  const gt = document.getElementById('gb-total');
+  const gp = document.getElementById('gb-pass');
+  const gf = document.getElementById('gb-fail');
+  if (total > 0) {
+    gt.textContent = total + ' run';    gt.style.display = '';
+    gp.textContent = pass  + ' passed'; gp.style.display = pass > 0 ? '' : 'none';
+    gf.textContent = fail  + ' failed'; gf.style.display = fail > 0 ? '' : 'none';
+  }
+}
+
+/* ── SSE runner ─────────────────────────────────────────────── */
+function setRunning(v) {
+  S.running = v;
+  document.querySelectorAll('.run-grp-btn, .run-section-btn, .ti-run').forEach(b => b.disabled = v);
+  document.getElementById('cancel-btn').style.display = v ? '' : 'none';
+}
+
+/*
+ * Match a result function name to a sidebar dot index.
+ * The GROUPS[gid].items have the real pytest class names (e.g. TestCartPage),
+ * so we match on either fn substring or class name substring.
+ */
+function matchSidebarDot(gid, r) {
+  const fnLower  = r.fn.toLowerCase();
+  const clsLower = (r.cls || '').toLowerCase();
+  return GROUPS[gid].items.findIndex(it => {
+    const itemFn  = it.fn.toLowerCase();
+    // Try direct function name substring first
+    if (itemFn.includes(fnLower.slice(0, 20))) return true;
+    // Try class name
+    if (clsLower && itemFn.toLowerCase().includes(clsLower.slice(0, 14))) return true;
+    return false;
+  });
+}
+
+function runSuite(suiteId, gid) {
+  if (S.running) { log('⚠ A run is already in progress — stop it first.', 'warn'); return; }
+
+  // Init state for this group
+  S.groupResults[gid] = [];
+  S.groupSummary[gid] = null;
+  S.groupRunning[gid] = true;
+  S.currentGroup      = gid;
+  renderDetail(gid);
+
+  const btn = document.getElementById('btn-grp-' + gid);
+  if (btn) { btn.textContent = 'Running…'; btn.classList.add('running'); }
+
+  // Reset sidebar dots
+  GROUPS[gid].items.forEach((_, i) => {
+    const d = document.getElementById('dot-' + gid + '-' + i);
+    if (d) d.className = 'ti-dot running';
+  });
+
+  setRunning(true);
+  log('', 'sep');
+  log('─'.repeat(60), 'sep');
+  log('  $ pytest ' + GROUPS[gid].file + ' -v', 'cmd');
+  log('─'.repeat(60), 'sep');
+
+  const es = new EventSource(`${SERVER}/run/${suiteId}`);
+  S.activeEs = es;
+
+  es.addEventListener('start', e => {
+    const d = JSON.parse(e.data);
+    log('  collecting …', 'dim');
+    log('  cmd: ' + d.cmd, 'dim');
+  });
+
+  es.addEventListener('log', e => {
+    const d = JSON.parse(e.data);
+    log(d.text, d.level);
+  });
+
+  es.addEventListener('result', e => {
+    const r = JSON.parse(e.data);
+
+    // Update the matching sidebar dot
+    const idx = matchSidebarDot(gid, r);
+    if (idx >= 0) {
+      const dot = document.getElementById('dot-' + gid + '-' + idx);
+      if (dot) dot.className = 'ti-dot ' + (r.status === 'PASSED' ? 'pass' : r.status === 'SKIPPED' ? '' : 'fail');
+    }
+
+    S.groupResults[gid].push({
+      fn      : r.fn,
+      cls     : r.cls,
+      path    : r.path,
+      status  : r.status,
+      duration: '—',
+      pct     : r.pct,
+    });
+
+    if (S.currentGroup === gid) renderDetail(gid);
+    refreshGlobalStats();
+  });
+
+  es.addEventListener('done', e => {
+    const d = JSON.parse(e.data);
+    const s = d.summary || {};
+
+    // Store authoritative summary
+    S.groupSummary[gid] = s;
+    S.groupRunning[gid] = false;
+
+    // Distribute per-test duration from summary total
+    if (s.duration && S.groupResults[gid].length > 0) {
+      const perTest = (s.duration / S.groupResults[gid].length).toFixed(3) + 's';
+      S.groupResults[gid].forEach(r => { r.duration = perTest; });
+    }
+
+    // Color final sidebar dots: pass if all passed, else fail
+    const allPass = (s.failed || 0) + (s.errors || 0) === 0;
+    GROUPS[gid].items.forEach((_, i) => {
+      const dot = document.getElementById('dot-' + gid + '-' + i);
+      if (dot && dot.className.includes('running')) {
+        dot.className = 'ti-dot ' + (allPass ? 'pass' : 'fail');
+      }
+    });
+
+    if (btn) { btn.textContent = 'Run'; btn.classList.remove('running'); }
+
+    const exitOk = d.exit_code === 0;
+    log('', 'sep');
+    log(exitOk
+      ? `  ✓  ${s.passed || 0} passed in ${(s.duration || 0).toFixed(2)}s`
+      : `  ✗  ${s.failed || 0} failed,  ${s.passed || 0} passed in ${(s.duration || 0).toFixed(2)}s`,
+      exitOk ? 'pass' : 'fail'
+    );
+    log('─'.repeat(60), 'sep');
+
+    if (S.currentGroup === gid) renderDetail(gid);
+    refreshGlobalStats();
+    setRunning(false);
+    es.close(); S.activeEs = null;
+  });
+
+  es.addEventListener('error', e => {
+    try {
+      const d = JSON.parse(e.data);
+      log('  ERROR: ' + d.message, 'fail');
+    } catch {
+      // Generic SSE error (connection dropped, etc.)
+      if (!S.running) return;  // already stopped by cancel
+      log('  Connection error — is runner_server.py running?', 'fail');
+    }
+    S.groupRunning[gid] = false;
+    if (btn) { btn.textContent = 'Run'; btn.classList.remove('running'); }
+    // Reset running dots
+    GROUPS[gid].items.forEach((_, i) => {
+      const dot = document.getElementById('dot-' + gid + '-' + i);
+      if (dot && dot.className.includes('running')) dot.className = 'ti-dot';
+    });
+    if (S.currentGroup === gid) renderDetail(gid);
+    setRunning(false);
+    es.close(); S.activeEs = null;
+  });
+}
+
+function runGroup(gid) { runSuite(gid, gid); }
+
+async function runSection(section) {
+  if (S.running) return;
+  const keys = Object.keys(GROUPS).filter(k => GROUPS[k].section === section);
+  for (const gid of keys) {
+    await new Promise(resolve => {
+      S.groupResults[gid] = [];
+      S.groupSummary[gid] = null;
+      S.groupRunning[gid] = true;
+      S.currentGroup      = gid;
+      selectGroup(gid);
+
+      const btn = document.getElementById('btn-grp-' + gid);
+      if (btn) { btn.textContent = 'Running…'; btn.classList.add('running'); }
+      GROUPS[gid].items.forEach((_, i) => {
+        const d = document.getElementById('dot-' + gid + '-' + i);
+        if (d) d.className = 'ti-dot running';
+      });
+
+      setRunning(true);
+      log('', 'sep');
+      log('─'.repeat(60), 'sep');
+      log('  $ pytest ' + GROUPS[gid].file + ' -v', 'cmd');
+
+      const es = new EventSource(`${SERVER}/run/${gid}`);
+      S.activeEs = es;
+
+      es.addEventListener('log', e => { const d = JSON.parse(e.data); log(d.text, d.level); });
+
+      es.addEventListener('result', e => {
+        const r = JSON.parse(e.data);
+        const idx = matchSidebarDot(gid, r);
+        if (idx >= 0) {
+          const dot = document.getElementById('dot-' + gid + '-' + idx);
+          if (dot) dot.className = 'ti-dot ' + (r.status === 'PASSED' ? 'pass' : r.status === 'SKIPPED' ? '' : 'fail');
+        }
+        S.groupResults[gid].push({ fn: r.fn, cls: r.cls, path: r.path, status: r.status, duration: '—' });
+        if (S.currentGroup === gid) renderDetail(gid);
+        refreshGlobalStats();
+      });
+
+      es.addEventListener('done', e => {
+        const d = JSON.parse(e.data);
+        const s = d.summary || {};
+        S.groupSummary[gid] = s;
+        S.groupRunning[gid] = false;
+        if (s.duration && S.groupResults[gid].length > 0) {
+          const perTest = (s.duration / S.groupResults[gid].length).toFixed(3) + 's';
+          S.groupResults[gid].forEach(r => { r.duration = perTest; });
+        }
+        const allPass = (s.failed || 0) + (s.errors || 0) === 0;
+        GROUPS[gid].items.forEach((_, i) => {
+          const dot = document.getElementById('dot-' + gid + '-' + i);
+          if (dot && dot.className.includes('running')) dot.className = 'ti-dot ' + (allPass ? 'pass' : 'fail');
+        });
+        if (btn) { btn.textContent = 'Run'; btn.classList.remove('running'); }
+        if (S.currentGroup === gid) renderDetail(gid);
+        refreshGlobalStats();
+        es.close(); S.activeEs = null;
+        setRunning(false);
+        resolve();
+      });
+
+      es.addEventListener('error', () => {
+        S.groupRunning[gid] = false;
+        if (btn) { btn.textContent = 'Run'; btn.classList.remove('running'); }
+        GROUPS[gid].items.forEach((_, i) => {
+          const dot = document.getElementById('dot-' + gid + '-' + i);
+          if (dot && dot.className.includes('running')) dot.className = 'ti-dot';
+        });
+        setRunning(false); es.close(); S.activeEs = null; resolve();
+      });
+    });
+  }
+}
+
+function cancelRun() {
+  if (S.activeEs) { S.activeEs.close(); S.activeEs = null; }
+  fetch(`${SERVER}/cancel`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => { log(d.cancelled ? '  ⏹ Run cancelled.' : '  No active run.', 'warn'); })
+    .catch(() => log('  Could not reach server.', 'fail'));
+  setRunning(false);
+}
+
+/* ── Status polling ─────────────────────────────────────────── */
+function setChip(id, state) {
+  const el = document.getElementById(id);
+  el.className = 'chip ' + state;
+  el.querySelector('.dot').className = 'dot';
+}
+
+function checkServer() {
+  setChip('chip-server', 'chk');
+  fetch(`${SERVER}/status`, { signal: AbortSignal.timeout(3000) })
+    .then(r => r.json())
+    .then(d => {
+      document.getElementById('offline-overlay').style.display = 'none';
+      setChip('chip-server',   'ok');
+      setChip('chip-backend',  d.backend  ? 'ok' : 'err');
+      setChip('chip-frontend', d.frontend ? 'ok' : 'err');
+    })
+    .catch(() => {
+      document.getElementById('offline-overlay').style.display = 'flex';
+      setChip('chip-server',   'err');
+      setChip('chip-backend',  'err');
+      setChip('chip-frontend', 'err');
+    });
+}
+
+/* ── Init ───────────────────────────────────────────────────── */
+buildSidebar();
+checkServer();
+setInterval(checkServer, 8000);
+log('ShopVerse Test Runner  —  185 tests across 10 suites', 'info');
+log('Backend : tests_unit/ (60)  +  tests_api/ (78)', 'dim');
+log('Frontend: tests_e2e/ (47)  via Selenium WebDriver', 'dim');
+log('─'.repeat(60), 'sep');
+log('Waiting for a run to start…', 'dim');
+</script>
+</body>
+</html>

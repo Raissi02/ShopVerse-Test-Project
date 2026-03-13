@@ -1,0 +1,21 @@
+# ShopVerse — Python dependencies for all test suites
+#
+# Install with:
+#   pip install -r requirements.txt
+#
+# ── Core test runner (required for all suites) ────────────────────────────────
+pytest==8.3.5
+
+# ── Integration & System tests (tests_api/) ───────────────────────────────────
+# Real HTTP calls to the .NET backend — no mocking
+requests==2.32.3
+
+# ── Selenium E2E tests (test_*.py in root) ────────────────────────────────────
+# Requires Google Chrome + matching ChromeDriver installed separately
+selenium==4.27.1
+
+# ── Unit tests (tests_unit/) ─────────────────────────────────────────────────
+# No additional dependencies — pure Python only
+
+# ── Static analysis (static/static_analysis.py) ──────────────────────────────
+# No additional dependencies — uses stdlib (re, json, pathlib, argparse)
